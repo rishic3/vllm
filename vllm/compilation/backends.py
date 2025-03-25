@@ -104,6 +104,9 @@ class CompilerManager:
 
         compilation_counter.num_backend_compilations += 1
 
+        logger.info("CompilerManager: compiling graph (start_time: %s)",
+                    time.time())
+
         compiled_graph = None
 
         # try to load from the cache
@@ -118,6 +121,8 @@ class CompilerManager:
 
         # no compiler cached the graph, or the cache is disabled,
         # we need to compile it
+        logger.info("CompilerManager: no compiled graph found, compiling graph index %s",
+                    graph_index)
         compiled_graph, handle = self.compiler.compile(
             graph, example_inputs, additional_inductor_config, runtime_shape)
 
@@ -242,6 +247,7 @@ class PiecewiseCompileInterpreter(torch.fx.Interpreter):
             for t in args
         ]
         with self.fake_mode:
+            logger.info("PiecewiseCompileInterpreter: running with fake args")
             return super().run(*fake_args)
 
     def call_module(self, target: torch.fx.node.Target,
@@ -425,6 +431,8 @@ class VllmBackend:
         self.graph = graph
         self.configure_post_pass()
 
+        logger.info("Splitting graph")
+
         self.split_gm, self.piecewise_graphs = split_graph(
             graph, self.compilation_config.splitting_ops)
 
@@ -441,6 +449,9 @@ class VllmBackend:
             item.submod_name for item in self.piecewise_graphs
             if not item.is_splitting_graph
         ]
+
+        logger.info("Submod names to compile: %s", submod_names_to_compile)
+        logger.info("Running PiecewiseCompileInterpreter to compile submodules")
 
         # propagate the split graph to the piecewise backend,
         # compile submodules with symbolic shapes
