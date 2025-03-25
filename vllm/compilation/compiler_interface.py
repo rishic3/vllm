@@ -168,6 +168,8 @@ class InductorAdaptor(CompilerInterface):
         current_config = config.get_config_copy()
         from torch._inductor.compile_fx import compile_fx
 
+        print(f"InductorAdaptor: compiling graph")
+
         # disable remote cache
         current_config["fx_graph_cache"] = True
         current_config["fx_graph_remote_cache"] = False
@@ -222,6 +224,7 @@ class InductorAdaptor(CompilerInterface):
             original_load_name = None
 
             def hijacked_compile_fx_inner(*args, **kwargs):
+                print(f"InductorAdaptor: hijacking compile_fx_inner")
                 output = torch._inductor.compile_fx.compile_fx_inner(
                     *args, **kwargs)
                 nonlocal hash_str
@@ -252,25 +255,30 @@ class InductorAdaptor(CompilerInterface):
 
         with ExitStack() as stack:
             # hijack to get the compiled graph itself
+            print(f"InductorAdaptor: hijacking load")
             if original_load_name is not None:
                 stack.enter_context(patch(original_load_name, hijack_load))
 
             # for hijacking the hash of the compiled graph
+            print(f"InductorAdaptor: hijacking compiled_fx_graph_hash")
             stack.enter_context(
                 patch("torch._inductor.codecache.compiled_fx_graph_hash",
                       hijack_compiled_fx_graph_hash))
 
             # for providing a dummy shape environment
+            print(f"InductorAdaptor: hijacking _get_shape_env")
             stack.enter_context(
                 patch("torch._inductor.codecache.FxGraphCache._get_shape_env",
                       _get_shape_env))
 
             # for forcing the graph to be cached
+            print(f"InductorAdaptor: hijacking _check_can_cache")
             stack.enter_context(
                 patch(
                     "torch._inductor.codecache.FxGraphCache._check_can_cache",
                     _check_can_cache))
 
+            print(f"InductorAdaptor: compiling graph")
             compiled_graph = compile_fx(
                 graph,
                 example_inputs,

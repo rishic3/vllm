@@ -46,10 +46,13 @@ class PostGradPassManager(Parent):
         self.passes: List[InductorPass] = []
 
     def __call__(self, graph: fx.Graph):
-        for pass_ in self.passes:
+        logger.info("PostGradPassManager: running passes")
+        for i, pass_ in enumerate(self.passes):
+            logger.info("PostGradPassManager: running pass index %s", i)
             pass_(graph)
 
         # always run fix_functionalization last
+        logger.info("PostGradPassManager: running fix_functionalization")
         self.fix_functionalization(graph)
 
     def configure(self, pass_config: CompilationConfig.PassConfig):
